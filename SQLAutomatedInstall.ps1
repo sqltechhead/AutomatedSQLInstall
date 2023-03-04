@@ -142,6 +142,14 @@ Else
 
         Invoke-SQLAutomatedUpgrade -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
     }
+    ElseIf ($SQLInstance.Version.Major -gt $ExpectedMajorVersion) {
+        Write-Host "[INFO]: Detected that you are on a higher version of SQL. Uninstalling"
+        Read-Host "[WARNING]: This will cause your instance and databases to be dropped. If you are not ok with this data loss, don't continue."
+
+        Invoke-SQLAutomatedUninstall -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
+
+        Invoke-SQLAutomatedInstall -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
+    }
    
 }
 

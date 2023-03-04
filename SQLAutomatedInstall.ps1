@@ -64,7 +64,9 @@ Function Invoke-SQLAutomatedInstall{
         [Int]$SQLMajorVersion,
         [Parameter(Mandatory = $True )]
         [ValidateNotNullOrEmpty()]
-        [String]$SQLMajorURI
+        [String]$SQLInstallFile
+
+        
     )
 
     [Array]$DownloadParams = @(
@@ -93,12 +95,12 @@ Function Invoke-SQLAutomatedUpgrade{
         [Int]$SQLMajorVersion,
         [Parameter(Mandatory = $True )]
         [ValidateNotNullOrEmpty()]
-        [String]$SQLMajorURI
+        [String]$SQLInstallFile
     )
 
     [Array]$DownloadParams = @(
         "/Action=Upgrade",
-        "/Quiet",
+        "/QuietSimple",
         "/IAcceptSQLServerLicenseTerms"
         "/ConfigurationFile=$WorkingDirectory\ConfigurationFiles\SQLMajorVersion$($SQLMajorVersion)Upgrade.ini")
 
@@ -127,64 +129,19 @@ Else
     # Download SQL ISO
     Invoke-SQLMediaDownload -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLMajorURI $SQLInstallURI
 
-    $ISOFile = Get-ChildItem -Path "$WorkingDirectory\Binaries" | Where-Object {$_.Extension -eq "iso"} | Select-Object -First 1
+    $ISOFile = (Get-ChildItem -Path "$WorkingDirectory\Binaries" | Where-Object {$_.Extension -eq ".iso"} | Select-Object -First 1).FullName
     $ISOMountDiskLetter = (Mount-DiskImage -ImagePath $ISOFile -passthru | Get-Volume).DriveLetter
 
     If (!$SQLInstance) {
         Write-Host "[INFO]: No SQL Instance Detected. Installing..."
 
-        Invoke-SQLAutomatedInstall -MountedDrive "$($ISOMountDiskLetter)\setup.exe"
+        Invoke-SQLAutomatedInstall -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
     }
     ElseIf ($SQLInstance.Version.Major -lt $ExpectedMajorVersion) {
         Write-Host "[INFO]: Detected that you are on a lower version of SQL. Upgrading..."
+
+        Invoke-SQLAutomatedUpgrade -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
     }
    
 }
 
-
-
-
-If (!$SQLInstance) {
-    Write-Host "[INFO]: No SQL Instance Detected. Installing..."
-    
-    [Collections.Generic.List[String]]$InstallParams = @(
-        "/Action=Install",
-        "/MEDIAPATH=$SQLInstallLocation",
-        "/Quiet",
-        "/IAcceptSQLServerLicenseTerms"
-        "/ConfigurationFile=$SQLInstallLocation\ConfigurationFile.ini")
-
-    $ExitCode = Start-Process -Wait "$SQLInstallLocation\$SQLInstallExeName" -Passthru -ArgumentList $InstallParams
-
-    If ($ExitCode.ExitCode -ne 0) {
-
-        Throw "[ERROR]: Exit code was non zero logs located $InstallLogFileLocation"
-    }
-}
-ElseIf ( $SQLInstance.Version.Major -eq $ExpectedMajorVersion ) {
-    Write-Host "[INFO]: SQL Server is already at correct version. Exiting."
-}
-ElseIf ($SQLInstance.Version.Major -lt $ExpectedMajorVersion) {
-    Write-Host "[INFO]: Detected that you are on a lower version of SQL. Upgrading..."
-
-    [Collections.Generic.List[String]]$InstallParams = @(
-        "/Action=Upgrade",
-        "/MEDIAPATH=$SQLInstallLocation",
-        "/Quiet",
-        "/IAcceptSQLServerLicenseTerms"
-        "/ConfigurationFile=$SQLInstallLocation\UpgradeConfigurationFile.ini")
-
-    $ExitCode = Start-Process -Wait "$SQLInstallLocation\$SQLInstallExeName" -Passthru -ArgumentList $InstallParams
-
-    If ($ExitCode.ExitCode -ne 0) {
-        Throw "[ERROR]: Exit code was non zero logs located $InstallLogFileLocation"
-    }
-}
-ElseIf ($SQLInstance.Version.Major -gt $ExpectedMajorVersion) {
-    Write-Host "[INFO]: You need to Downgrade. If you want to test a higher version please create a named instance"
-}
-
-##upgrade
-$mount = Mount-DiskImage -ImagePath "C:\SQLInstall\SQLServer2019-x64-ENU-Dev.iso" -passthru
-$mount | Get-Volume
-E:\setup.exe /Action=Upgrade /Quiet /IAcceptSQLServerLicenseTerms /ConfigurationFile="C:\SQLInstall\UpgradeConfigurationFile.ini"

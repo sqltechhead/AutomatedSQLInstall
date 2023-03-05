@@ -8,8 +8,6 @@ $ErrorActionPreference = "Stop"
 Import-Module .\SQLAutomatedInstall.psm1
 
 $WorkingDirectory = "C:\Projects\AutomatedSQLInstall\AutomatedSQLInstall"
-$InstallLogFileLocation = "C:\Program Files\Microsoft SQL Server\$($ExpectedMajorVersion)0\Setup Bootstrap\Log"
-
 
 Try {
     $InstalledSQLInstances = Get-DefaultSQLInstance
@@ -27,7 +25,7 @@ Try {
     Else {
     
         Write-Host "[INFO]: Downloading SQL Installation Files"
-        $ExitCode = Invoke-SQLMediaDownload -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLMajorURI $SQLInstallURI
+        Invoke-SQLMediaDownload -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLMajorURI $SQLInstallURI
 
         Write-Host "[INFO]: Mounting ISO File"
         $ISOFile = (Get-ChildItem -Path "$WorkingDirectory\Binaries" | Where-Object { $_.Extension -eq ".iso" } | Select-Object -First 1).FullName
@@ -36,7 +34,7 @@ Try {
         If (!$InstalledSQLInstances) {
             Write-Host "[INFO]: No SQL Instance Detected. Installing..."
 
-            $ExitCode = Invoke-SQLAutomatedInstall -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
+            Invoke-SQLAutomatedInstall -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
 
             Write-Host "[INFO]: Dismounting ISO File"
             Dismount-DiskImage -ImagePath $ISOFile | Out-Null
@@ -46,26 +44,22 @@ Try {
         ElseIf ($InstalledSQLInstances.Version.Major -lt $ExpectedMajorVersion) {
             Write-Host "[INFO]: Detected that you are on a lower version of SQL. Upgrading..."
 
-            $ExitCode = Invoke-SQLAutomatedUpgrade -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
+            Invoke-SQLAutomatedUpgrade -WorkingDirectory $WorkingDirectory -SQLMajorVersion $ExpectedMajorVersion -SQLInstallFile "$($ISOMountDiskLetter):\setup.exe"
 
             Write-Host "[INFO]: Dismounting ISO File"
             Dismount-DiskImage -ImagePath $ISOFile | Out-Null
         }
    
     }
-    Write-Host $ExitCode
-Throw
-    If ($ExitCode -ne 0) {
-
-        Write-Error "[ERROR]: Exit code was non zero, investigate logs located $InstallLogFileLocation" -ErrorAction Stop
-    }
 
 }
 Catch {
-    If (Test-Path $ISOMountDiskLetter) {
-        Write-Host "[INFO]: Dismounting ISO File"
-        Dismount-DiskImage -ImagePath $ISOFile | Out-Null
+    If ($ISOMountDiskLetter) {
+        If (Test-Path $ISOMountDiskLetter) {
+            Write-Host "[INFO]: Dismounting ISO File"
+            Dismount-DiskImage -ImagePath $ISOFile | Out-Null
 
-        Throw $_;
+            Throw $_;
+        }
     }
 }

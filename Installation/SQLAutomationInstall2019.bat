@@ -1,2 +1,2 @@
-powershell.exe .\SQLAutomatedInstall.ps1 -SQLInstallURI "https://go.microsoft.com/fwlink/?linkid=866662" -ExpectedMajorVersion 15
+powershell.exe .\SQLAutomatedInstall.ps1 -SQLInstallURI "https://go.microsoft.com/fwlink/?linkid=866662" -SQLMajorVersion 15 -WorkingDirectory "C:\Projects\AutomatedSQLInstall\AutomatedSQLInstall"
 pause

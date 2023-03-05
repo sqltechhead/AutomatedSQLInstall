@@ -29,8 +29,13 @@ Function Invoke-SQLMediaDownload {
         [String]$SQLMajorURI
     )
     $InstallLogFileLocation = "C:\Program Files\Microsoft SQL Server\$($SQLMajorVersion)0\Setup Bootstrap\Log"
+    $SQLInstallFile = "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)\SQLDeveloper_MajorVersion_$($SQLMajorVersion).exe"
 
-    $SQLInstallFile = "$WorkingDirectory\Binaries\SQLDeveloper_MajorVersion_$($SQLMajorVersion).exe"
+    If (!(Test-Path "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)"))
+    {
+        New-Item -Path "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)" -ItemType Directory | Out-Null
+    }
+
     If (!(Test-Path $SQLInstallFile)) {
         Write-Host "[INFO]: Downloading SQL Executable"
         Invoke-Webrequest -Uri $SQLMajorURI -OutFile $SQLInstallFile -Verbose
@@ -41,7 +46,7 @@ Function Invoke-SQLMediaDownload {
     
     [Array]$DownloadParams = @(
         "/Action=Download",
-        "/MEDIAPATH=$WorkingDirectory\Binaries",
+        "/MEDIAPATH=$($WorkingDirectory)\Binaries\$($SQLMajorVersion)",
         "/Quiet",
         "/MediaType=ISO")
 

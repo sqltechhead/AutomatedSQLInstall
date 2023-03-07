@@ -28,33 +28,42 @@ Function Invoke-SQLMediaDownload {
         [ValidateNotNullOrEmpty()]
         [String]$SQLMajorURI
     )
-    $InstallLogFileLocation = "C:\Program Files\Microsoft SQL Server\$($SQLMajorVersion)0\Setup Bootstrap\Log"
-    $SQLInstallFile = "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)\SQLDeveloper_MajorVersion_$($SQLMajorVersion).exe"
+    Try {
 
-    If (!(Test-Path "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)"))
-    {
-        New-Item -Path "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)" -ItemType Directory | Out-Null
-    }
-
-    If (!(Test-Path $SQLInstallFile)) {
-        Write-Host "[INFO]: Downloading SQL Executable"
-        Invoke-Webrequest -Uri $SQLMajorURI -OutFile $SQLInstallFile -Verbose
-    }
-    Else {
-        Write-Host "[INFO]: SQL Executable already exists. Continuing."
-    }
     
-    [Array]$DownloadParams = @(
-        "/Action=Download",
-        "/MEDIAPATH=$($WorkingDirectory)\Binaries\$($SQLMajorVersion)",
-        "/Quiet",
-        "/MediaType=ISO")
+        $InstallLogFileLocation = "C:\Program Files\Microsoft SQL Server\$($SQLMajorVersion)0\Setup Bootstrap\Log"
+        $SQLInstallFile = "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)\SQLDeveloper_MajorVersion_$($SQLMajorVersion).exe"
 
-    $ExitCode = Start-Process -Wait $SQLInstallFile -Passthru -ArgumentList $DownloadParams
+        If (!(Test-Path "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)")) {
+            New-Item -Path "$($WorkingDirectory)\Binaries\$($SQLMajorVersion)" -ItemType Directory | Out-Null
+        }
 
-    If ($ExitCode.ExitCode -ne 0) {
+        If (!(Test-Path $SQLInstallFile)) {
+            Write-Host "[INFO]: Downloading SQL Executable"
+            Invoke-Webrequest -Uri $SQLMajorURI -OutFile $SQLInstallFile -Verbose
+        }
+        Else {
+            Write-Host "[INFO]: SQL Executable already exists. Continuing."
+        }
 
-        Throw "[ERROR]: Exit code was non zero logs located $InstallLogFileLocation"
+        [Array]$DownloadParams = @(
+            "/Action=Download",
+            "/MEDIAPATH=$($WorkingDirectory)\Binaries\$($SQLMajorVersion)",
+            "/Quiet",
+            "/MediaType=ISO")
+
+        $Response = Start-Process -Wait $SQLInstallFile -Passthru -ArgumentList $DownloadParams 2>&1
+
+        ## If not 0 (successfull)
+        If ($Response.ExitCode -ne 0) {
+            Throw $_;
+        }
+    }
+    Catch {
+        Write-Error "[ERROR]: Exit code was non zero, investigate logs located $($InstallLogFileLocation)" 
+        
+
+        Throw $_;
     }
 }
 
@@ -71,21 +80,33 @@ Function Invoke-SQLAutomatedInstall {
         [ValidateNotNullOrEmpty()]
         [String]$SQLInstallFile
 
-        
+
     )
-    $InstallLogFileLocation = "C:\Program Files\Microsoft SQL Server\$($SQLMajorVersion)0\Setup Bootstrap\Log"
-    [Array]$DownloadParams = @(
-        "/Action=Install",
-        "/QuietSimple",
-        "/IAcceptSQLServerLicenseTerms",
-        "SQLSYSADMINACCOUNTS=$env:UserDomain\$env:UserName"
-        "/ConfigurationFile=$WorkingDirectory\ConfigurationFiles\SQLMajorVersion$($SQLMajorVersion)Install.ini")
+    Try {
 
-    $ExitCode = Start-Process -Wait $SQLInstallFile -Passthru -ArgumentList $DownloadParams
+    
+        $InstallLogFileLocation = "C:\Program Files\Microsoft SQL Server\$($SQLMajorVersion)0\Setup Bootstrap\Log"
+        [Array]$DownloadParams = @(
+            "/Action=Install",
+            "/QuietSimple",
+            "/IAcceptSQLServerLicenseTerms",
+            "/SQLSYSADMINACCOUNTS=$env:UserDomain\$env:UserName"
+            "/ConfigurationFile=$WorkingDirectory\ConfigurationFiles\SQLMajorVersion$($SQLMajorVersion)Install.ini")
 
-    If ($ExitCode.ExitCode -ne 0) {
+        $Response = Start-Process -Wait $SQLInstallFile -Passthru -ArgumentList $DownloadParams 2>&1
+        
+        ## If not 0 (successfull) and not 3010 (Passed but reboot required)
+        If (($Response.ExitCode -ne 0) -and ($Response.ExitCode -ne 3010)) {
+            Throw $_;
+        }
+        ElseIf ($Response.ExitCode -eq 3010) {
+            Write-Host "[INFO]: Restart is needed, ensure you restart your computer" -BackgroundColor DarkYellow
+        }
+    }
+    Catch {
+        Write-Error "[ERROR]: Exit code was non zero, investigate logs located $($InstallLogFileLocation)" 
 
-        Throw "[ERROR]: Exit code was non zero logs located $InstallLogFileLocation"
+        Throw $_;
     }
 }
 
@@ -111,15 +132,20 @@ Function Invoke-SQLAutomatedUpgrade {
             "/IAcceptSQLServerLicenseTerms"
             "/ConfigurationFile=$WorkingDirectory\ConfigurationFiles\SQLMajorVersion$($SQLMajorVersion)Upgrade.ini")
 
-        $Response = Start-Process -Wait $SQLInstallFile -Passthru -ArgumentList $DownloadParams 2>&1changes
-        If ($LASEXITCODE -ne 0) {
-            Throw
-        
+        $Response = Start-Process -Wait $SQLInstallFile -Passthru -ArgumentList $DownloadParams 2>&1
+
+        ## If not 0 (successfull) and not 3010 (Passed but reboot required)
+        If (($Response.ExitCode -ne 0) -and ($Response.ExitCode -ne 3010)) {
+            Throw $_;
+        }
+        ElseIf ($Response.ExitCode -eq 3010) {
+            Write-Host "[INFO]: Restart is needed, ensure you restart your computer" -BackgroundColor DarkYellow
         }
 
     }
     Catch {
-        Write-Error "[ERROR]: Exit code was non zero, investigate logs located $InstallLogFileLocation" 
-        Write-Error $Response -ErrorAction Stop
+        Write-Error "[ERROR]: Exit code was non zero, investigate logs located $($InstallLogFileLocation)" 
+
+        Throw $_;
     }
 }

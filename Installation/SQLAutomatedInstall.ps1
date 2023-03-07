@@ -7,7 +7,7 @@ Param(
     [String]$WorkingDirectory
 )
 $ErrorActionPreference = "Stop"
-Import-Module .\SQLAutomatedInstall.psm1
+Import-Module $WorkingDirectory\Installation\SQLAutomatedInstall.psm1
 
 Try {
     $InstalledSQLInstances = Get-DefaultSQLInstance
@@ -23,7 +23,7 @@ Try {
         Read-Host "Press any key to exit"
     }
     Else {
-    
+
         Write-Host "[INFO]: Downloading SQL Installation Files" -ForegroundColor Green
         Invoke-SQLMediaDownload -WorkingDirectory $WorkingDirectory -SQLMajorVersion $SQLMajorVersion -SQLMajorURI $SQLInstallURI
 
@@ -39,7 +39,8 @@ Try {
             Write-Host "[INFO]: Dismounting ISO File" -ForegroundColor Green
             Dismount-DiskImage -ImagePath $ISOFile | Out-Null
 
-            Read-Host "[INFO]: Installation Successfull" -ForegroundColor Green
+            Write-Host "[INFO]: Installation Successfull" -ForegroundColor Green
+            Read-Host "Press any key to exit"
         }
         ElseIf ($InstalledSQLInstances.Version.Major -lt $SQLMajorVersion) {
             Write-Host "[INFO]: Detected that you are on a lower version of SQL. Upgrading..." -ForegroundColor Green
@@ -48,8 +49,11 @@ Try {
 
             Write-Host "[INFO]: Dismounting ISO File" -ForegroundColor Green
             Dismount-DiskImage -ImagePath $ISOFile | Out-Null
+
+            Write-Host "[INFO]: Upgrade Successfull" -ForegroundColor Green
+            Read-Host "Press any key to exit"
         }
-   
+
     }
 
 }
@@ -58,8 +62,7 @@ Catch {
         If (Test-Path $ISOMountDiskLetter) {
             Write-Host "[INFO]: Dismounting ISO File" -ForegroundColor Green
             Dismount-DiskImage -ImagePath $ISOFile | Out-Null
-
-            Throw $_;
         }
     }
+    Throw $_;
 }

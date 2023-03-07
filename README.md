@@ -1,4 +1,3 @@
-[[_TOC_]]
 # AutomatedSQLInstall
 ## Scenario
 You're a DBA in your company. You look after all the database needs of your production application/service as well as lower environments such as Staging, Development, Pre-Prod etc. You also look after all the local SQL installs for all the Developers. To ensure identical tests in all environments these local installs should be alot more tightly administered. Things like:
